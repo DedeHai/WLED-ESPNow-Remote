@@ -21,7 +21,7 @@
 #define WIZ_SMART_BUTTON_BRIGHT_UP 102
 #define WIZ_SMART_BUTTON_BRIGHT_DOWN 103
 
-#define REPEATSEND 1       // how many times the message is repeated (increase in very noisy environments, usually 1 is enough)
+#define REPEATSEND 3       // how many times the message is repeated (increase in very noisy environments, usually 1 is enough)
 #define SENDTIMEOUT 10000  // set 10ms timout, sendouts usually take less than 1ms, up to 6ms if there is traffic
 
 
@@ -75,9 +75,9 @@ bool initEspNow() {
 
 void broadcastAcrossChannels() {
   isSent = false;  // start with a timout on first call
-  for (int i = 1; i < 14; i++) {
-    esp_wifi_set_channel(i, WIFI_SECOND_CHAN_NONE);
-    for (int s = 0; s < REPEATSEND; s++) {
+  for (int s = 0; s < REPEATSEND; s++) {
+    for (int i = 1; i < 14; i++) {
+      esp_wifi_set_channel(i, WIFI_SECOND_CHAN_NONE);
       // delayMicroseconds(50);  // short delay helps in case there is traffic on the channel -> uncomment if using multiple sends
       esp_err_t result = esp_now_send(globalBroadcastAddress, (uint8_t *)&outmessage, sizeof(outmessage));
       if (result != ESP_OK) {
@@ -98,7 +98,6 @@ void broadcastAcrossChannels() {
 #ifdef ROTARY_ENCODER
         handleRotaryEncoder(true);  // poll rotary encoder, skip DT reading: interrupt reads pin state and sets timestamp (rotary encoder uses interrupt (+ polling) as changes can be as fast as 0.3ms and sendout blocks for about ~1ms)
 #endif
-        
       }
     }
   }
@@ -117,5 +116,5 @@ void sendPress(uint8_t buttonCode) {
     outmessage.program = 0x91;  // 0x91 for ON button, 0x81 for all others
 
   broadcastAcrossChannels();
-  esp_wifi_stop();  // enable wifi peripheral
+  esp_wifi_stop();  // disable wifi peripheral
 }

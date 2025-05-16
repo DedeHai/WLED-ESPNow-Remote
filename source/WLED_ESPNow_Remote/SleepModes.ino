@@ -15,6 +15,7 @@
 void enterLightSleep(unsigned micros) {
   esp_sleep_enable_gpio_wakeup();
   esp_sleep_enable_timer_wakeup(micros);  // wake up time is in microseconds
+
 #ifdef ROTARY_ENCODER
   gpio_sleep_set_pull_mode((gpio_num_t)CLK_PIN, GPIO_PULLUP_ONLY);
   gpio_sleep_set_pull_mode((gpio_num_t)DT_PIN, GPIO_PULLUP_ONLY);
@@ -25,21 +26,29 @@ void enterLightSleep(unsigned micros) {
     gpio_wakeup_enable((gpio_num_t)CLK_PIN, GPIO_INTR_HIGH_LEVEL);
 #endif
 
-#ifndef BUTTON_MATRIX  // normal buttons
-  for (int i = 0; i < NUM_BUTTONS; i++) {
-    gpio_sleep_set_pull_mode((gpio_num_t)buttonPins[i], GPIO_PULLUP_ONLY);
-    if (digitalRead(buttonPins[i]))
-      gpio_wakeup_enable((gpio_num_t)buttonPins[i], GPIO_INTR_LOW_LEVEL);  // pin is high, wake-up at low
-    else
-      gpio_wakeup_enable((gpio_num_t)buttonPins[i], GPIO_INTR_HIGH_LEVEL);
-  }
-#else  // prepare matrix pins for sleep, hold mode is already set in pin setup, row pins are set to correct state in setup and after each scan
+#ifdef BUTTON_MATRIX  // prepare matrix pins for sleep, hold mode is already set in pin setup, row pins are set to correct state in setup and after each scan
   for (int i = 0; i < MATRIX_COLS; i++) {
     gpio_sleep_set_pull_mode((gpio_num_t)columnPins[i], GPIO_PULLUP_ONLY);
     if (digitalRead(columnPins[i]))
       gpio_wakeup_enable((gpio_num_t)columnPins[i], GPIO_INTR_LOW_LEVEL);  // pin is high, wake-up at low
     else
       gpio_wakeup_enable((gpio_num_t)columnPins[i], GPIO_INTR_HIGH_LEVEL);
+  }
+#elifdef SENSOR_TRIGGER // active digital sensor (like PIR or sound trigger)
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    gpio_sleep_set_pull_mode((gpio_num_t)sensorPins[i], GPIO_FLOATING);
+    if (digitalRead(buttonPins[i]))
+      gpio_wakeup_enable((gpio_num_t)sensorPins[i], GPIO_INTR_LOW_LEVEL);  // pin is high, wake-up at low
+    else
+      gpio_wakeup_enable((gpio_num_t)sensorPins[i], GPIO_INTR_HIGH_LEVEL);
+  }
+#else  // normal buttons
+  for (int i = 0; i < NUM_BUTTONS; i++) {
+    gpio_sleep_set_pull_mode((gpio_num_t)buttonPins[i], GPIO_PULLUP_ONLY);
+    if (digitalRead(buttonPins[i]))
+      gpio_wakeup_enable((gpio_num_t)buttonPins[i], GPIO_INTR_LOW_LEVEL);  // pin is high, wake-up at low
+    else
+      gpio_wakeup_enable((gpio_num_t)buttonPins[i], GPIO_INTR_HIGH_LEVEL);
   }
 #endif
   // Enter light sleep
@@ -178,9 +187,9 @@ void RTC_IRAM_ATTR esp_wake_deep_sleep(void) {
   }
 
   for (int i = 0; i < MATRIX_COLS; i++) {
-    if (columnactive[i]) {                                        // found active signal in this column, scan it
-      for (int j = 0; j < MATRIX_ROWS; j++) {                     // scan the rows
-        gpio_output_set(0, 1 << rowPins[j], 1 << rowPins[j], 0);  // enable output and set pin low
+    if (columnactive[i]) {                                              // found active signal in this column, scan it
+      for (int j = 0; j < MATRIX_ROWS; j++) {                           // scan the rows
+        gpio_output_set(0, 1 << rowPins[j], 1 << rowPins[j], 0);        // enable output and set pin low
         for (int d = 0; d < 400; d++) __asm__ __volatile__("nop");      // short delay without timer available (measured: 5us)
         bool buttonState = (gpio_input_get() >> columnPins[i]) & BIT0;  // read column GPIO state
         if (buttonState == LOW) {
@@ -202,12 +211,11 @@ void RTC_IRAM_ATTR esp_wake_deep_sleep(void) {
     gpio_pad_select_gpio(buttonPins[i]);                            // Select GPIO function
     gpio_pad_pullup(buttonPins[i]);                                 // Enable pull-up resistor
     gpio_pad_input_enable(buttonPins[i]);                           // Enable input mode
-    bool buttonState = (gpio_input_get() >> buttonPins[i]) & BIT0;  // read GPIO state    
+    bool buttonState = (gpio_input_get() >> buttonPins[i]) & BIT0;  // read GPIO state
     if (buttonState == LOW) {
       buttons[i].buttonClicks++;  // button was clicked
       buttons[i].buttonPressed = true;
     }
   }
 #endif
-
 }

@@ -20,6 +20,12 @@ void initButtons(void) {
     // note: buttonPressed and buttonClicks are set in deepsleep wake-up stub
   }
 
+#ifdef SENSOR_TRIGGER
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    pinMode(sensorPins[i], INPUT);  // sensor with active output needs no pullup/pulldown
+  }
+#endif
+
 #ifdef BUTTON_MATRIX
   for (int i = 0; i < MATRIX_COLS; i++) {
     pinMode(columnPins[i], INPUT_PULLUP);     // column pins are used for reading button state

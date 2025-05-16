@@ -27,7 +27,7 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   LED_OFF;  
 
-  initButtons();    // initialize buttons, update states
+  initButtons();    // initialize inputs, update states
 
 #ifdef ROTARY_ENCODER
   if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER) {  // timer wakeup from deep sleep, reset rotary level and go to sleep for good
@@ -76,9 +76,9 @@ void loop() {
     }
   }
 #ifndef DISABLE_DEEPSLEEP // enter deep sleep if not disabled
-  if (esp_timer_get_time() - lastsendtime > ACTIVE_TIME * 1000) {
+  if (esp_timer_get_time() - lastsendtime > ACTIVE_TIME * 1000UL) {
 #ifdef ROTARY_ENCODER
-    enterDeepSleep(KEEPROTARYLEVEL_TIME * 1000000);
+    enterDeepSleep(KEEPROTARYLEVEL_TIME * 1000000UL);
 #else
     enterDeepSleep(0);  // go to deep sleep indefinitely
 #endif
